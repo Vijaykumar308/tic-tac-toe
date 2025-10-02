@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 const Square = ({ value, onClick, disabled = false }) => {
-  const squareRef = useRef(null);
+  const squareRef = useRef(null) ;
   
   // Add animation when value changes
   useEffect(() => {
