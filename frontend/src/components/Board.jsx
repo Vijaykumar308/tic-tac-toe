@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Square from './Square';
 import WinnerPopup from './WinnerPopup';
 import { findBestMove } from './utils/ai';
+import { createSocketConnection } from './utils/socket-client';
 
 const checkWinner = (squares) => {
     const winningCombination = [
@@ -23,6 +24,8 @@ const isBoardFull = (squares) => {
     return squares.every(square => square !== null);
 };
 
+let socket;
+
 const Board = () => {
     const [state, setState] = useState(Array(9).fill(null));
     const [isXTurn, setIsXTurn] = useState(true);
@@ -32,6 +35,9 @@ const Board = () => {
     const [isDraw, setIsDraw] = useState(false);
     const [gameMode, setGameMode] = useState(null);
     const [isComputerThinking, setIsComputerThinking] = useState(false);
+
+    let io;
+
 
     const renderSquare = (index) => (
         <Square 
@@ -82,7 +88,10 @@ const Board = () => {
         }
     };
 
-    const startNewGame = (mode) => {
+    const startNewGame = async (mode) => {
+        if(mode === "pvp") {
+            const io = await createSocketConnection();
+        }
         setGameMode(mode);
         resetGame();
     };
