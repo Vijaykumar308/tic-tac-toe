@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Square from './Square';
 import WinnerPopup from './WinnerPopup';
+import PvPSetup from './PvPSetup';
 import { findBestMove } from './utils/ai';
-import { createSocketConnection } from './utils/socket-client';
 
 const checkWinner = (squares) => {
     const winningCombination = [
@@ -24,8 +24,6 @@ const isBoardFull = (squares) => {
     return squares.every(square => square !== null);
 };
 
-let socket;
-
 const Board = () => {
     const [state, setState] = useState(Array(9).fill(null));
     const [isXTurn, setIsXTurn] = useState(true);
@@ -35,9 +33,9 @@ const Board = () => {
     const [isDraw, setIsDraw] = useState(false);
     const [gameMode, setGameMode] = useState(null);
     const [isComputerThinking, setIsComputerThinking] = useState(false);
-
-    let io;
-
+    const [showPvPSetup, setShowPvPSetup] = useState(false);
+    const [players, setPlayers] = useState({ player1: 'Player 1', player2: 'Player 2' });
+    const [gameId, setGameId] = useState(null);
 
     const renderSquare = (index) => (
         <Square 
@@ -89,10 +87,27 @@ const Board = () => {
     };
 
     const startNewGame = async (mode) => {
-        if(mode === "pvp") {
-            const io = await createSocketConnection();
+        if (mode === 'pvp') {
+            setShowPvPSetup(true);
+            return;
         }
+        
+        if (mode === 'pvc') {
+            setPlayers({ player1: 'You', player2: 'Computer' });
+        }
+        
         setGameMode(mode);
+        resetGame();
+    };
+
+    const handlePvPStart = (gameData) => {
+        setPlayers({
+            player1: gameData.player1,
+            player2: gameData.player2
+        });
+        setGameMode('pvp');
+        setShowPvPSetup(false);
+        setGameId(gameData.gameId);
         resetGame();
     };
 
@@ -102,8 +117,9 @@ const Board = () => {
         setMoves(0);
         setWinner(null);
         setIsDraw(false);
+        
         if (gameMode === 'pvp') {
-            setGameStatus("Player X's turn");
+            setGameStatus(`${players.player1}'s turn (X)`);
         } else if (gameMode === 'pvc') {
             setGameStatus("Your turn (X)");
         }
@@ -111,7 +127,8 @@ const Board = () => {
 
     const changeGameMode = () => {
         setGameMode(null);
-        resetGame();
+        setShowPvPSetup(false);
+        setGameStatus('Select game mode to start');
     };
 
     useEffect(() => {
@@ -125,7 +142,8 @@ const Board = () => {
         
         if (winner) {
             if (gameMode === 'pvp') {
-                setGameStatus(`Player ${winner} wins!`);
+                const winnerName = winner === 'X' ? players.player1 : players.player2;
+                setGameStatus(`${winnerName} wins!`);
             } else {
                 setGameStatus(winner === 'X' ? 'You win!' : 'Computer wins!');
             }
@@ -133,12 +151,13 @@ const Board = () => {
             setGameStatus("Game is a draw!");
         } else {
             if (gameMode === 'pvp') {
-                setGameStatus(`Player ${isXTurn ? 'X' : 'O'}'s turn`);
+                const currentPlayer = isXTurn ? players.player1 : players.player2;
+                setGameStatus(`${currentPlayer}'s turn (${isXTurn ? 'X' : 'O'})`);
             } else {
                 setGameStatus(isXTurn ? 'Your turn (X)' : 'Computer is thinking...');
             }
         }
-    }, [isXTurn, winner, isDraw, gameMode]);
+    }, [isXTurn, winner, isDraw, gameMode, players]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center p-4">
@@ -173,9 +192,23 @@ const Board = () => {
             ) : (
                 <>
                     <div className="mb-6 text-lg font-medium text-gray-700 dark:text-gray-300">
-                        {gameStatus}
-                        {!isXTurn && gameMode === 'pvc' && !winner && !isDraw && (
-                            <span className="ml-2 animate-pulse">🤔</span>
+                        {gameMode === 'pvp' && (
+                            <div className="text-center">
+                                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                                    {isXTurn ? players.player1 : players.player2}'s turn
+                                </div>
+                                <div className="text-xl font-bold">
+                                    {gameStatus}
+                                </div>
+                            </div>
+                        )}
+                        {gameMode === 'pvc' && (
+                            <>
+                                {gameStatus}
+                                {!isXTurn && !winner && !isDraw && (
+                                    <span className="ml-2 animate-pulse">🤔</span>
+                                )}
+                            </>
                         )}
                     </div>
                     
@@ -195,33 +228,37 @@ const Board = () => {
                                 isDraw={isDraw}
                                 onClose={resetGame} 
                                 gameMode={gameMode}
+                                players={players}
                             />
                         )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-4 mt-6">
                         <button
-                            onClick={resetGame}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 
+                            onClick={changeGameMode}
+                            className="px-6 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 
                                        text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl
-                                       flex items-center justify-center transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                                       flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
                         >
-                            <span className="mr-2">🔄</span> New Game
+                            Change Mode
                         </button>
                         <button
-                            onClick={changeGameMode}
-                            className="px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 
+                            onClick={resetGame}
+                            className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 
                                        text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl
-                                       flex items-center justify-center transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+                                       flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                         >
-                            <span className="mr-2">↩️</span> Change Mode
+                            New Game
                         </button>
                     </div>
-                    
-                    <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-                        Moves: {moves} | Mode: {gameMode === 'pvp' ? 'Player vs Player' : 'Player vs Computer'}
-                    </div>
                 </>
+            )}
+
+            {showPvPSetup && (
+                <PvPSetup
+                    onStartGame={handlePvPStart}
+                    onClose={() => setShowPvPSetup(false)}
+                />
             )}
         </div>
     );
