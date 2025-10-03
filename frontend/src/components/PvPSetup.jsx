@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const PvPSetup = ({ onStartGame, onClose }) => {
     const [player1, setPlayer1] = useState('');
     const [player2, setPlayer2] = useState('');
     const [gameLink, setGameLink] = useState('');
     const [isCopied, setIsCopied] = useState(false);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         // Generate a unique game ID
@@ -26,6 +29,8 @@ const PvPSetup = ({ onStartGame, onClose }) => {
                 gameId: gameLink.split('/').pop()
             });
         }
+        const url = new URL(gameLink);;
+        navigate(url.pathname);
     };
 
     return (
