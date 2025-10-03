@@ -1,110 +1,105 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { socketClient } from './utils/socket-client';
 
 const PvPSetup = ({ onStart }) => {
     const [playerName, setPlayerName] = useState('');
+    const [roomId, setRoomId] = useState('');
+    const [mode, setMode] = useState('create'); // 'create' or 'join'
     const [gameLink, setGameLink] = useState('');
     const [isCopied, setIsCopied] = useState(false);
-    const [isJoining, setIsJoining] = useState(false);
     const [error, setError] = useState('');
-    const [mode, setMode] = useState('create'); // 'create' or 'join'
-    const [roomId, setRoomId] = useState('');
 
     useEffect(() => {
-        // Check for join link in URL
-        const params = new URLSearchParams(window.location.search);
-        const joinId = params.get('join');
-        if (joinId) {
-            setMode('join');
-            setRoomId(joinId);
-        }
-
-        // Setup socket listeners
-        const handleGameStart = (data) => {
-            console.log('Game started:', data);
-            onStart(data);
+        // Set up socket listeners when component mounts
+        const handleGameStart = (gameData) => {
+            console.log('Game started:', gameData);
+            onStart(gameData);
         };
 
         const handleError = (error) => {
             console.error('Socket error:', error);
             setError(error.message || 'An error occurred');
-            setIsJoining(false);
         };
 
         socketClient.onGameStart(handleGameStart);
         socketClient.onError(handleError);
 
+        // Clean up on unmount
         return () => {
             socketClient.cleanup();
         };
     }, [onStart]);
 
-    const handleCreateGame = useCallback(async (e) => {
-        e?.preventDefault();
+    // Input change handlers
+    const handleNameChange = (e) => {
+        setPlayerName(e.target.value);
+        setError('');
+    };
+
+    const handleRoomIdChange = (e) => {
+        setRoomId(e.target.value.toUpperCase());
+        setError('');
+    };
+
+    const toggleMode = () => {
+        setMode(prev => prev === 'create' ? 'join' : 'create');
+        setError('');
+    };
+
+    // Handle form submission
+    const handleSubmit = useCallback((e) => {
+        e.preventDefault();
+        
         if (!playerName.trim()) {
             setError('Please enter your name');
             return;
         }
 
-        setIsJoining(true);
-        setError('');
+        if (mode === 'join' && !roomId.trim()) {
+            setError('Please enter a game ID');
+            return;
+        }
 
-        socketClient.createGame(playerName, (response) => {
-            if (response.error) {
-                setError(response.error);
-                setIsJoining(false);
-            } else {
+        if (mode === 'create') {
+            socketClient.createGame(playerName, (response) => {
+                if (response.error) {
+                    setError(response.error);
+                    return;
+                }
                 const link = `${window.location.origin}?join=${response.roomId}`;
                 setGameLink(link);
-                // The game will start when the second player joins (handled in handleGameStart)
-            }
-        });
-    }, [playerName]);
-
-    const handleJoinGame = useCallback(async (e) => {
-        e?.preventDefault();
-        if (!playerName.trim()) {
-            setError('Please enter your name');
-            return;
+            });
+        } else {
+            socketClient.joinGame(roomId, playerName, (response) => {
+                if (response.error) {
+                    setError(response.error);
+                    return;
+                }
+                // onStart will be called when the game starts
+            });
         }
+    }, [playerName, roomId, mode]);
 
-        if (!roomId) {
-            setError('Please enter a valid game ID');
-            return;
-        }
-
-        setIsJoining(true);
-        setError('');
-
-        socketClient.joinGame(roomId, playerName, (response) => {
-            if (response.error) {
-                setError(response.error);
-                setIsJoining(false);
-            }
-            // The game will start when the second player joins (handled in handleGameStart)
-        });
-    }, [playerName, roomId]);
-
-    const copyToClipboard = useCallback(() => {
+    // Copy game link to clipboard
+    const copyToClipboard = () => {
         if (!gameLink) return;
         navigator.clipboard.writeText(gameLink);
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
-    }, [gameLink]);
+    };
 
-    const handleSubmit = mode === 'create' ? handleCreateGame : handleJoinGame;
-
+    // If we have a game link, show the share screen
     if (gameLink) {
         return (
-            <div className="p-4 max-w-md mx-auto bg-white rounded-lg shadow-md">
+            <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-md">
                 <h2 className="text-2xl font-bold mb-4">Share Game Link</h2>
                 <p className="mb-4">Send this link to your friend to start playing:</p>
-                <div className="flex mb-4">
+                <div className="flex mb-4 text-black">
                     <input
                         type="text"
                         readOnly
                         value={gameLink}
-                        className="flex-1 p-2 border rounded-l"
+                        className="flex-1 p-2 border rounded-l focus:outline-none"
                     />
                     <button
                         onClick={copyToClipboard}
@@ -119,14 +114,15 @@ const PvPSetup = ({ onStart }) => {
         );
     }
 
+    // Show the setup form
     return (
-        <div className="p-4 max-w-md mx-auto bg-white rounded-lg shadow-md">
+        <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-md">
             <h2 className="text-2xl font-bold mb-6 text-center">
                 {mode === 'create' ? 'Create Game' : 'Join Game'}
             </h2>
             
             {error && (
-                <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
                     {error}
                 </div>
             )}
@@ -140,8 +136,9 @@ const PvPSetup = ({ onStart }) => {
                         type="text"
                         id="playerName"
                         value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={handleNameChange}
+                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                        placeholder="Enter your name"
                         required
                     />
                 </div>
@@ -155,33 +152,25 @@ const PvPSetup = ({ onStart }) => {
                             type="text"
                             id="roomId"
                             value={roomId}
-                            onChange={(e) => setRoomId(e.target.value)}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onChange={handleRoomIdChange}
+                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                             placeholder="Enter game ID"
-                            required
+                            required={mode === 'join'}
                         />
                     </div>
                 )}
 
                 <button
                     type="submit"
-                    disabled={isJoining}
-                    className={`w-full py-2 px-4 rounded text-white font-medium ${
-                        isJoining
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-blue-500 hover:bg-blue-600'
-                    }`}
+                    className="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                 >
-                    {isJoining 
-                        ? 'Loading...' 
-                        : mode === 'create' ? 'Create Game' : 'Join Game'
-                    }
+                    {mode === 'create' ? 'Create Game' : 'Join Game'}
                 </button>
 
                 <div className="text-center mt-4">
                     <button
                         type="button"
-                        onClick={() => setMode(mode === 'create' ? 'join' : 'create')}
+                        onClick={toggleMode}
                         className="text-blue-500 hover:text-blue-700 text-sm"
                     >
                         {mode === 'create' 
