@@ -1,186 +1,180 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { socketClient } from './utils/socket-client';
 
 const PvPSetup = ({ onStart }) => {
-    const [playerName, setPlayerName] = useState('');
-    const [roomId, setRoomId] = useState('');
-    const [mode, setMode] = useState('create'); // 'create' or 'join'
-    const [gameLink, setGameLink] = useState('');
-    const [isCopied, setIsCopied] = useState(false);
-    const [error, setError] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [roomId, setRoomId] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [error, setError] = useState('');
+  const [shareLink, setShareLink] = useState('');
 
-    useEffect(() => {
-        // Set up socket listeners when component mounts
-        const handleGameStart = (gameData) => {
-            console.log('Game started:', gameData);
-            onStart(gameData);
-        };
+  // Get roomId from URL if it exists
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomIdFromUrl = params.get('roomId');
+    if (roomIdFromUrl) {
+      setRoomId(roomIdFromUrl);
+    }
+  }, []);
 
-        const handleError = (error) => {
-            console.error('Socket error:', error);
-            setError(error.message || 'An error occurred');
-        };
-
-        socketClient.onGameStart(handleGameStart);
-        socketClient.onError(handleError);
-
-        // Clean up on unmount
-        return () => {
-            socketClient.cleanup();
-        };
-    }, [onStart]);
-
-    // Input change handlers
-    const handleNameChange = (e) => {
-        setPlayerName(e.target.value);
-        setError('');
-    };
-
-    const handleRoomIdChange = (e) => {
-        setRoomId(e.target.value.toUpperCase());
-        setError('');
-    };
-
-    const toggleMode = () => {
-        setMode(prev => prev === 'create' ? 'join' : 'create');
-        setError('');
-    };
-
-    // Handle form submission
-    const handleSubmit = useCallback((e) => {
-        e.preventDefault();
-        
-        if (!playerName.trim()) {
-            setError('Please enter your name');
-            return;
-        }
-
-        if (mode === 'join' && !roomId.trim()) {
-            setError('Please enter a game ID');
-            return;
-        }
-
-        if (mode === 'create') {
-            socketClient.createGame(playerName, (response) => {
-                if (response.error) {
-                    setError(response.error);
-                    return;
-                }
-                const link = `${window.location.origin}?join=${response.roomId}`;
-                setGameLink(link);
-            });
-        } else {
-            socketClient.joinGame(roomId, playerName, (response) => {
-                if (response.error) {
-                    setError(response.error);
-                    return;
-                }
-                // onStart will be called when the game starts
-            });
-        }
-    }, [playerName, roomId, mode]);
-
-    // Copy game link to clipboard
-    const copyToClipboard = () => {
-        if (!gameLink) return;
-        navigator.clipboard.writeText(gameLink);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    };
-
-    // If we have a game link, show the share screen
-    if (gameLink) {
-        return (
-            <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold mb-4">Share Game Link</h2>
-                <p className="mb-4">Send this link to your friend to start playing:</p>
-                <div className="flex mb-4 text-black">
-                    <input
-                        type="text"
-                        readOnly
-                        value={gameLink}
-                        className="flex-1 p-2 border rounded-l focus:outline-none"
-                    />
-                    <button
-                        onClick={copyToClipboard}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600"
-                        disabled={isCopied}
-                    >
-                        {isCopied ? 'Copied!' : 'Copy'}
-                    </button>
-                </div>
-                <p className="text-gray-600">Waiting for opponent to join...</p>
-            </div>
-        );
+  const handleCreateGame = async (e) => {
+    e.preventDefault();
+    if (!playerName.trim()) {
+      setError('Please enter your name');
+      return;
     }
 
-    // Show the setup form
+    setIsCreating(true);
+    setError('');
+
+    try {
+      const response = await socketClient.createGame(playerName);
+      const gameLink = `${window.location.origin}?roomId=${response.roomId}`;
+      setShareLink(gameLink);
+      
+      // Call onStart with the correct data structure
+      onStart({
+        roomId: response.roomId,
+        players: [{ name: playerName, symbol: 'X' }],
+        isHost: true
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to create game');
+      setIsCreating(false);
+    }
+  };
+
+  const handleJoinGame = async (e) => {
+    e.preventDefault();
+    if (!playerName.trim() || !roomId.trim()) {
+      setError('Please enter your name and room ID');
+      return;
+    }
+
+    setIsJoining(true);
+    setError('');
+
+    try {
+      const response = await socketClient.joinGame(roomId, playerName);
+      onStart({
+        roomId: response.roomId,
+        players: response.players || [], // Ensure players is an array
+        isHost: false
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to join game');
+      setIsJoining(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (!shareLink) return;
+    navigator.clipboard.writeText(shareLink);
+    alert('Link copied to clipboard!');
+  };
+
+  if (shareLink) {
     return (
-        <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold mb-6 text-center">
-                {mode === 'create' ? 'Create Game' : 'Join Game'}
-            </h2>
-            
-            {error && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                    {error}
-                </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label htmlFor="playerName" className="block text-sm font-medium text-gray-700 mb-1">
-                        Your Name
-                    </label>
-                    <input
-                        type="text"
-                        id="playerName"
-                        value={playerName}
-                        onChange={handleNameChange}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                        placeholder="Enter your name"
-                        required
-                    />
-                </div>
-
-                {mode === 'join' && (
-                    <div>
-                        <label htmlFor="roomId" className="block text-sm font-medium text-gray-700 mb-1">
-                            Game ID
-                        </label>
-                        <input
-                            type="text"
-                            id="roomId"
-                            value={roomId}
-                            onChange={handleRoomIdChange}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                            placeholder="Enter game ID"
-                            required={mode === 'join'}
-                        />
-                    </div>
-                )}
-
-                <button
-                    type="submit"
-                    className="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                >
-                    {mode === 'create' ? 'Create Game' : 'Join Game'}
-                </button>
-
-                <div className="text-center mt-4">
-                    <button
-                        type="button"
-                        onClick={toggleMode}
-                        className="text-blue-500 hover:text-blue-700 text-sm"
-                    >
-                        {mode === 'create' 
-                            ? 'Have a game ID? Join an existing game' 
-                            : 'Want to create a new game instead?'}
-                    </button>
-                </div>
-            </form>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Game Created!</h2>
+          <p className="text-gray-600 mb-4">Share this link with your friend:</p>
+          
+          <div className="flex items-center mb-6">
+            <input
+              type="text"
+              readOnly
+              value={shareLink}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              onClick={copyToClipboard}
+              className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 focus:outline-none"
+            >
+              Copy
+            </button>
+          </div>
+          
+          <p className="text-gray-500 text-sm">Waiting for opponent to join...</p>
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl">
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Play Tic Tac Toe</h2>
+        
+        <form onSubmit={handleCreateGame} className="mb-8">
+          <div className="mb-4">
+            <label htmlFor="playerName" className="block text-sm font-medium text-gray-700 mb-1">
+              Your Name
+            </label>
+            <input
+              type="text"
+              id="playerName"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your name"
+              required
+            />
+          </div>
+          
+          <button
+            type="submit"
+            disabled={isCreating}
+            className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCreating ? 'Creating Game...' : 'Create New Game'}
+          </button>
+        </form>
+
+        <div className="relative flex items-center my-6">
+          <div className="flex-grow border-t border-gray-300"></div>
+          <span className="flex-shrink mx-4 text-gray-500">OR</span>
+          <div className="flex-grow border-t border-gray-300"></div>
+        </div>
+
+        <form onSubmit={handleJoinGame}>
+          <div className="mb-4">
+            <label htmlFor="roomId" className="block text-sm font-medium text-gray-700 mb-1">
+              Room ID
+            </label>
+            <input
+              type="text"
+              id="roomId"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter room ID"
+              required
+            />
+          </div>
+          
+          <button
+            type="submit"
+            disabled={isJoining}
+            className="w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 
+                       focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isJoining ? 'Joining Game...' : 'Join Existing Game'}
+          </button>
+        </form>
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default PvPSetup;

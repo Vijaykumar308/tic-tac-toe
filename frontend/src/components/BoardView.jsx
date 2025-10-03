@@ -31,7 +31,6 @@ const BoardView = ({
   return (
     <div className="w-full max-w-md">
       <div className="bg-gray-100 p-4 rounded-2xl shadow-inner">
-        {/* 3x3 Grid Layout */}
         <div className="grid grid-rows-3 grid-cols-3 gap-2">
           {Array(9).fill(null).map((_, index) => (
             <div key={index} className="flex items-center justify-center">
