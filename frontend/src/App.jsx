@@ -4,8 +4,8 @@ import { createBrowserRouter, RouterProvider, useLoaderData } from "react-router
 
 // Create a wrapper component to handle the game ID
 const GameRoute = () => {
-  const { gameId } = useLoaderData();
-  return <Board isPvP={true} gameId={gameId} />;
+  const {gameId}  = useLoaderData();
+  return <Board isPvP={true} gameId={gameId}  />;
 };
 
 const router = createBrowserRouter([
@@ -23,6 +23,9 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+
+  // socket = await createSocketConnection();
+
   return (
     <div className="app">
       <RouterProvider router={router} />

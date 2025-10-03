@@ -1,5 +1,4 @@
 // creating Server
-import { Socket } from "dgram";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -19,10 +18,16 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
     console.log("Connection established", socket.id);
 
-    socket.on("message", (msg) => {
-        console.log("Message is: ", msg);
+    socket.on("joinRoom", (roomId) => {
+        socket.join(roomId);
+        console.log(`${socket.id} joined room ${roomId}`);
     });
 });
+
+
+
+
+
 
 
 

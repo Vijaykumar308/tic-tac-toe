@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const PvPSetup = ({ onStartGame, onClose }) => {
+const PvPSetup = ({ onStartGame, onClose, gameId }) => {
     const [player1, setPlayer1] = useState('');
     const [player2, setPlayer2] = useState('');
     const [gameLink, setGameLink] = useState('');
@@ -8,7 +8,7 @@ const PvPSetup = ({ onStartGame, onClose }) => {
 
     useEffect(() => {
         // Generate a unique game ID
-        const gameId = Math.random().toString(36).substring(2, 9);
+        // const gameId = Math.random().toString(36).substring(2, 9);
         setGameLink(`${window.location.origin}/game/${gameId}`);
     }, []);
 
