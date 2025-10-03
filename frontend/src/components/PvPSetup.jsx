@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 
 const PvPSetup = ({ onStartGame, onClose }) => {
     const [player1, setPlayer1] = useState('');
     const [player2, setPlayer2] = useState('');
     const [gameLink, setGameLink] = useState('');
     const [isCopied, setIsCopied] = useState(false);
-
-    const navigate = useNavigate();
 
     useEffect(() => {
         // Generate a unique game ID
@@ -23,14 +20,13 @@ const PvPSetup = ({ onStartGame, onClose }) => {
 
     const handleStartGame = () => {
         if (player1.trim() && player2.trim()) {
+            const gameId = gameLink.split('/').pop();
             onStartGame({
                 player1: player1.trim(),
                 player2: player2.trim(),
-                gameId: gameLink.split('/').pop()
+                gameId: gameId
             });
         }
-        const url = new URL(gameLink);;
-        navigate(url.pathname);
     };
 
     return (
@@ -98,7 +94,7 @@ const PvPSetup = ({ onStartGame, onClose }) => {
                             onClick={handleStartGame}
                             disabled={!player1.trim() || !player2.trim()}
                             className={`px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg transition-all flex-1 
-                                ${(!player1.trim() || !player2.trim()) ? 'opacity-50 cursor-not-allowed' : 'hover:from-green-600 hover:to-emerald-700'}`}
+                                      ${(!player1.trim() || !player2.trim()) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}`}
                         >
                             Start Game
                         </button>

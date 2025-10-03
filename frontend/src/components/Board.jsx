@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Square from './Square';
 import WinnerPopup from './WinnerPopup';
 import PvPSetup from './PvPSetup';
@@ -24,18 +25,39 @@ const isBoardFull = (squares) => {
     return squares.every(square => square !== null);
 };
 
-const Board = () => {
+const Board = ({ isPvP = false, gameId: initialGameId = null }) => {
     const [state, setState] = useState(Array(9).fill(null));
     const [isXTurn, setIsXTurn] = useState(true);
     const [gameStatus, setGameStatus] = useState('Select game mode to start');
     const [moves, setMoves] = useState(0);
     const [winner, setWinner] = useState(null);
     const [isDraw, setIsDraw] = useState(false);
-    const [gameMode, setGameMode] = useState(null);
+    const [gameMode, setGameMode] = useState(isPvP ? 'pvp' : null);
     const [isComputerThinking, setIsComputerThinking] = useState(false);
-    const [showPvPSetup, setShowPvPSetup] = useState(false);
+    const [showPvPSetup, setShowPvPSetup] = useState(!isPvP);
     const [players, setPlayers] = useState({ player1: 'Player 1', player2: 'Player 2' });
-    const [gameId, setGameId] = useState(null);
+    const [gameId, setGameId] = useState(initialGameId);
+    const navigate = useNavigate();
+    const params = useParams();
+
+    // Sync gameId from URL if it changes
+    useEffect(() => {
+        if (params.id && params.id !== gameId) {
+            setGameId(params.id);
+            resetGame();
+        }
+    }, [params.id]);
+
+    // Update game status text
+    useEffect(() => {
+        if (winner) {
+            setGameStatus(`${winner === 'X' ? players.player1 : players.player2} wins!`);
+        } else if (isDraw) {
+            setGameStatus("It's a draw!");
+        } else if (gameMode) {
+            setGameStatus(`${isXTurn ? players.player1 : players.player2}'s turn (${isXTurn ? 'X' : 'O'})`);
+        }
+    }, [isXTurn, winner, isDraw, players, gameMode]);
 
     const renderSquare = (index) => (
         <Square 
@@ -86,7 +108,7 @@ const Board = () => {
         }
     };
 
-    const startNewGame = async (mode) => {
+    const startNewGame = (mode) => {
         if (mode === 'pvp') {
             setShowPvPSetup(true);
             return;
@@ -105,10 +127,13 @@ const Board = () => {
             player1: gameData.player1,
             player2: gameData.player2
         });
+        setGameId(gameData.gameId);
         setGameMode('pvp');
         setShowPvPSetup(false);
-        setGameId(gameData.gameId);
         resetGame();
+        
+        // Navigate to the game URL
+        navigate(`/game/${gameData.gameId}`, { replace: true });
     };
 
     const resetGame = () => {
@@ -125,39 +150,18 @@ const Board = () => {
         }
     };
 
-    const changeGameMode = () => {
+    const handleBackToMenu = () => {
         setGameMode(null);
-        setShowPvPSetup(false);
         setGameStatus('Select game mode to start');
+        navigate('/');
     };
 
+    // Computer's turn
     useEffect(() => {
         if (gameMode === 'pvc' && !isXTurn && !winner && !isDraw) {
             makeComputerMove();
         }
     }, [isXTurn, gameMode, winner, isDraw]);
-
-    useEffect(() => {
-        if (gameMode === null) return;
-        
-        if (winner) {
-            if (gameMode === 'pvp') {
-                const winnerName = winner === 'X' ? players.player1 : players.player2;
-                setGameStatus(`${winnerName} wins!`);
-            } else {
-                setGameStatus(winner === 'X' ? 'You win!' : 'Computer wins!');
-            }
-        } else if (isDraw) {
-            setGameStatus("Game is a draw!");
-        } else {
-            if (gameMode === 'pvp') {
-                const currentPlayer = isXTurn ? players.player1 : players.player2;
-                setGameStatus(`${currentPlayer}'s turn (${isXTurn ? 'X' : 'O'})`);
-            } else {
-                setGameStatus(isXTurn ? 'Your turn (X)' : 'Computer is thinking...');
-            }
-        }
-    }, [isXTurn, winner, isDraw, gameMode, players]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center p-4">
@@ -235,12 +239,12 @@ const Board = () => {
 
                     <div className="flex flex-col sm:flex-row gap-4 mt-6">
                         <button
-                            onClick={changeGameMode}
+                            onClick={handleBackToMenu}
                             className="px-6 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 
                                        text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl
                                        flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
                         >
-                            Change Mode
+                            Back to Menu
                         </button>
                         <button
                             onClick={resetGame}
