@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { findBestMove } from '../components/utils/ai';
 
 const checkWinner = (squares) => {
@@ -31,7 +31,7 @@ const useTicTacToe = (gameMode, players) => {
   const [gameStatus, setGameStatus] = useState('Select game mode to start');
 
   // Update game status text
-  useEffect(() => {
+  const updateGameStatus = useCallback(() => {
     if (winner) {
       setGameStatus(`${winner === 'X' ? players.player1 : players.player2} wins!`);
     } else if (isDraw) {
@@ -41,6 +41,11 @@ const useTicTacToe = (gameMode, players) => {
     }
   }, [isXTurn, winner, isDraw, players, gameMode]);
 
+  // Update status when dependencies change
+  useEffect(() => {
+    updateGameStatus();
+  }, [updateGameStatus]);
+
   // Computer's turn
   useEffect(() => {
     if (gameMode === 'pvc' && !isXTurn && !winner && !isDraw) {
@@ -48,7 +53,7 @@ const useTicTacToe = (gameMode, players) => {
     }
   }, [isXTurn, gameMode, winner, isDraw]);
 
-  const makeComputerMove = () => {
+  const makeComputerMove = useCallback(() => {
     if (isBoardFull(squares) || checkWinner(squares)) return;
     
     setIsComputerThinking(true);
@@ -56,23 +61,20 @@ const useTicTacToe = (gameMode, players) => {
     setTimeout(() => {
       const move = findBestMove(squares, isXTurn);
       if (move !== -1) {
-        handleMove(move);
+        const newSquares = [...squares];
+        newSquares[move] = isXTurn ? 'X' : 'O';
+        updateGameState(newSquares, !isXTurn);
       }
       setIsComputerThinking(false);
     }, 500);
-  };
+  }, [squares, isXTurn]);
 
-  const handleMove = (index) => {
-    if (squares[index] || checkWinner(squares)) return;
-
-    const newSquares = [...squares];
-    newSquares[index] = isXTurn ? 'X' : 'O';
-    
+  const updateGameState = useCallback((newSquares, newIsXTurn) => {
     const newWinner = checkWinner(newSquares);
     const boardFull = isBoardFull(newSquares);
     
     setSquares(newSquares);
-    setIsXTurn(!isXTurn);
+    setIsXTurn(newIsXTurn);
     setMoves(prev => prev + 1);
 
     if (newWinner) {
@@ -80,33 +82,52 @@ const useTicTacToe = (gameMode, players) => {
     } else if (boardFull) {
       setIsDraw(true);
     }
-  };
+  }, []);
 
-  const handleSquareClick = (index) => {
+  const handleMove = useCallback((index) => {
+    if (squares[index] || checkWinner(squares)) return;
+
+    const newSquares = [...squares];
+    newSquares[index] = isXTurn ? 'X' : 'O';
+    
+    updateGameState(newSquares, !isXTurn);
+  }, [squares, isXTurn, updateGameState]);
+
+  const handleSquareClick = useCallback((index) => {
     if (gameMode === null) return;
     if (gameMode === 'pvp' || (gameMode === 'pvc' && isXTurn)) {
       handleMove(index);
     }
-  };
+  }, [gameMode, isXTurn, handleMove]);
 
-  const resetGame = () => {
+  const setGameState = useCallback((gameState) => {
+    if (gameState) {
+      setSquares(gameState.squares || Array(9).fill(null));
+      setIsXTurn(gameState.isXTurn !== undefined ? gameState.isXTurn : true);
+      setMoves(gameState.moves || 0);
+      setWinner(gameState.winner || null);
+      setIsDraw(gameState.isDraw || false);
+    }
+  }, []);
+
+  const resetGame = useCallback(() => {
     setSquares(Array(9).fill(null));
     setIsXTurn(true);
     setMoves(0);
     setWinner(null);
     setIsDraw(false);
-  };
+  }, []);
 
   return {
     squares,
     isXTurn,
-    moves,
     winner,
     isDraw,
     isComputerThinking,
     gameStatus,
     handleSquareClick,
     resetGame,
+    setGameState
   };
 };
 
