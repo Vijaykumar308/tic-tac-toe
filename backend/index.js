@@ -11,7 +11,7 @@ const frontendUrls = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
   : ['http://localhost:5173'];
 
-console.log(frontendUrls);
+// console.log(frontendUrls);
 app.use(cors({
   origin: frontendUrls,
   methods: ["GET", "POST"],
@@ -47,7 +47,7 @@ const checkWinner = (squares) => {
 };
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  // console.log('User connected:', socket.id);
 
   socket.on('createGame', ({ playerName }, callback) => {
     const roomId = generateRoomId();
@@ -63,7 +63,7 @@ io.on('connection', (socket) => {
     });
 
     socket.join(roomId);
-    console.log(`Game created: ${roomId} by ${playerName}`);
+    // console.log(`Game created: ${roomId} by ${playerName}`);
     
     callback({ 
       success: true,
@@ -94,7 +94,7 @@ io.on('connection', (socket) => {
       status: 'in-progress'
     });
 
-    console.log(`Player ${playerName} joined game ${roomId}`);
+    // console.log(`Player ${playerName} joined game ${roomId}`);
     callback({ 
       success: true, 
       roomId,
@@ -106,15 +106,15 @@ io.on('connection', (socket) => {
   socket.on('makeMove', (data) => {
     const { roomId, index, symbol } = data;
     const game = games.get(roomId);
-    if (!game) return console.log('Game not found:', roomId);
+    if (!game) return // console.log('Game not found:', roomId);
   
     if (game.board[index] !== null) {
-      console.log('Invalid move: Cell already taken');
+      // console.log('Invalid move: Cell already taken');
       return;
     }
   
     if (game.currentPlayer !== symbol) {
-      console.log('Invalid move: Not player\'s turn');
+      // console.log('Invalid move: Not player\'s turn');
       return;
     }
   
@@ -141,7 +141,7 @@ io.on('connection', (socket) => {
       isDraw: game.isDraw
     };
   
-    console.log('Broadcasting update:', updateData);
+    // console.log('Broadcasting update:', updateData);
     io.to(roomId).emit('gameUpdate', updateData);
   });
 
@@ -149,7 +149,7 @@ io.on('connection', (socket) => {
     const game = games.get(roomId);
     if (!game) return;
 
-    console.log(`Restarting game in room ${roomId}`);
+    // console.log(`Restarting game in room ${roomId}`);
     game.board = Array(9).fill(null);
     game.currentPlayer = 'X';
     game.winner = null;
@@ -167,13 +167,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    // console.log('User disconnected:', socket.id);
     
     for (const [roomId, game] of games.entries()) {
       game.players = game.players.filter(player => player.id !== socket.id);
       if (game.players.length === 0) {
         games.delete(roomId);
-        console.log(`Removed empty game: ${roomId}`);
+        // console.log(`Removed empty game: ${roomId}`);
       } else {
         io.to(roomId).emit('playerDisconnected', { playerId: socket.id });
       }
