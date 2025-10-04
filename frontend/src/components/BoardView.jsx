@@ -16,10 +16,10 @@ const BoardView = ({
   // Debug: Log winningLine whenever it changes
   React.useEffect(() => {
     if (winningLine) {
-      console.log('BoardView received winningLine:', winningLine);
-      console.log('WinningLine type:', Array.isArray(winningLine) ? 'Array' : typeof winningLine);
-      console.log('WinningLine length:', winningLine.length);
-      console.log('WinningLine values:', winningLine[0], winningLine[1], winningLine[2]);
+      // console.log(('BoardView received winningLine:', winningLine);
+      // console.log(('WinningLine type:', Array.isArray(winningLine) ? 'Array' : typeof winningLine);
+      // console.log(('WinningLine length:', winningLine.length);
+      // console.log(('WinningLine values:', winningLine[0], winningLine[1], winningLine[2]);
     }
   }, [winningLine]);
 
@@ -28,7 +28,7 @@ const BoardView = ({
     
     // Debug: Log for each square when there's a winning line
     if (winningLine && index <= 2) {
-      console.log(`Square ${index}: isWinningSquare = ${isWinningSquare}, winningLine.includes(${index}) = ${winningLine.includes(index)}`);
+      // console.log((`Square ${index}: isWinningSquare = ${isWinningSquare}, winningLine.includes(${index}) = ${winningLine.includes(index)}`);
     }
     
     return (
