@@ -1,11 +1,19 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
 const app = express();
+
+// Parse frontend URLs from environment variable
+const frontendUrls = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : ['http://localhost:5173'];
+
+console.log(frontendUrls);
 app.use(cors({
-  origin: ["http://10.66.81.193:5173", "http://localhost:5173"],
+  origin: frontendUrls,
   methods: ["GET", "POST"],
   credentials: true
 }));
@@ -13,7 +21,7 @@ app.use(cors({
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://10.66.81.193:5173", "http://localhost:5173"],
+    origin: frontendUrls,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -174,6 +182,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Allowed origins: ${frontendUrls.join(', ')}`);
 });
