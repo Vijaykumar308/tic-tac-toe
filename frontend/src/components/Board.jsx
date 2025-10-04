@@ -17,6 +17,7 @@ const Board = ({ isPvP = false }) => {
   const [winner, setWinner] = useState(null);
   const [isDraw, setIsDraw] = useState(false);
   const [gameStatus, setGameStatus] = useState('Waiting for players...');
+  const [isComputerThinking, setIsComputerThinking] = useState(false);
   
   const navigate = useNavigate();
 
@@ -35,6 +36,62 @@ const Board = ({ isPvP = false }) => {
     return null;
   }, []);
 
+  const getComputerMove = useCallback((squares) => {
+    const availableSquares = squares
+      .map((square, index) => square === null ? index : null)
+      .filter(val => val !== null);
+    
+    if (availableSquares.length === 0) return null;
+    
+    for (let i of availableSquares) {
+      const testSquares = [...squares];
+      testSquares[i] = 'O';
+      if (checkWinner(testSquares) === 'O') return i;
+    }
+    
+    for (let i of availableSquares) {
+      const testSquares = [...squares];
+      testSquares[i] = 'X';
+      if (checkWinner(testSquares) === 'X') return i;
+    }
+    
+    if (squares[4] === null) return 4;
+    
+    const corners = [0, 2, 6, 8].filter(i => squares[i] === null);
+    if (corners.length > 0) {
+      return corners[Math.floor(Math.random() * corners.length)];
+    }
+    
+    return availableSquares[Math.floor(Math.random() * availableSquares.length)];
+  }, [checkWinner]);
+
+  const makeComputerMove = useCallback((currentSquares) => {
+    setIsComputerThinking(true);
+    setGameStatus('Computer is thinking... 🤖');
+    
+    setTimeout(() => {
+      const moveIndex = getComputerMove(currentSquares);
+      if (moveIndex !== null) {
+        const newSquares = [...currentSquares];
+        newSquares[moveIndex] = 'O';
+        setSquares(newSquares);
+        setIsXTurn(true);
+        
+        const gameWinner = checkWinner(newSquares);
+        if (gameWinner) {
+          setWinner(gameWinner);
+          setGameStatus(gameWinner === 'X' ? 'You Win! 🏆' : 'Computer Wins! 🤖');
+        } else if (newSquares.every(square => square !== null)) {
+          setIsDraw(true);
+          setGameStatus("It's a draw! 🤝");
+        } else {
+          setGameStatus('Your turn (X)');
+        }
+      }
+      setIsComputerThinking(false);
+    }, 500);
+  }, [getComputerMove, checkWinner]);
+
   const resetGame = useCallback(() => {
     if (gameMode === 'pvp' && gameId) {
       socketClient.restartGame(gameId);
@@ -43,7 +100,8 @@ const Board = ({ isPvP = false }) => {
       setIsXTurn(true);
       setWinner(null);
       setIsDraw(false);
-      setGameStatus('Game reset - Make your move');
+      setIsComputerThinking(false);
+      setGameStatus(gameMode === 'pvc' ? 'Your turn (X)' : 'Game reset - Make your move');
     }
   }, [gameMode, gameId]);
 
@@ -51,6 +109,9 @@ const Board = ({ isPvP = false }) => {
     setGameMode(mode);
     if (mode === 'pvp') {
       setShowPvPSetup(true);
+    } else if (mode === 'pvc') {
+      setGameStatus('Your turn (X)');
+      setMySymbol('X');
     }
   };
 
@@ -80,32 +141,33 @@ const Board = ({ isPvP = false }) => {
   }, []);
 
   const handleSquareClick = useCallback((i) => {
-    if (winner || isDraw) {
-      console.log('Game is over');
+    if (winner || isDraw || isComputerThinking) {
       return;
     }
 
-    if (squares[i]) {
-      console.log('Invalid move: Square already taken');
+    if (squares[i] !== null) {
+      return;
+    }
+
+    if (gameMode === 'pvc' && !isXTurn) {
       return;
     }
 
     const currentSymbol = isXTurn ? 'X' : 'O';
-    const isMyTurn = gameMode === 'pvp' ? (mySymbol === currentSymbol) : true;
-
-    if (!isMyTurn) {
-      console.log(`Invalid move: Not your turn. Your symbol: ${mySymbol}, Current turn: ${currentSymbol}`);
-      return;
+    
+    // For PvP mode, check if it's the player's turn
+    if (gameMode === 'pvp') {
+      if (mySymbol !== currentSymbol) {
+        console.log('Not your turn');
+        return;
+      }
     }
-
-    console.log(`Making move at index ${i} with symbol ${currentSymbol}`);
 
     if (gameMode === 'pvp' && gameId) {
       socketClient.makeMove({
         roomId: gameId,
         index: i,
-        symbol: currentSymbol,
-        isXTurn: isXTurn
+        symbol: currentSymbol
       });
     } else {
       const newSquares = [...squares];
@@ -116,13 +178,19 @@ const Board = ({ isPvP = false }) => {
       const gameWinner = checkWinner(newSquares);
       if (gameWinner) {
         setWinner(gameWinner);
-        setGameStatus(`Player ${gameWinner} wins!`);
+        if (gameMode === 'pvc') {
+          setGameStatus(gameWinner === 'X' ? 'You Win! 🏆' : 'Computer Wins! 🤖');
+        } else {
+          setGameStatus(`Player ${gameWinner} wins!`);
+        }
       } else if (newSquares.every(square => square !== null)) {
         setIsDraw(true);
-        setGameStatus("It's a draw!");
+        setGameStatus("It's a draw! 🤝");
+      } else if (gameMode === 'pvc' && currentSymbol === 'X') {
+        makeComputerMove(newSquares);
       }
     }
-  }, [squares, isXTurn, gameMode, gameId, mySymbol, winner, isDraw, checkWinner]);
+  }, [squares, isXTurn, gameMode, gameId, mySymbol, winner, isDraw, isComputerThinking, checkWinner, makeComputerMove]);
 
   useEffect(() => {
     if (gameMode !== 'pvp') return;
@@ -203,6 +271,7 @@ const Board = ({ isPvP = false }) => {
     setIsXTurn(true);
     setWinner(null);
     setIsDraw(false);
+    setIsComputerThinking(false);
     setGameStatus('Waiting for players...');
   };
 
@@ -282,7 +351,7 @@ const Board = ({ isPvP = false }) => {
           gameMode={gameMode}
           isXTurn={isXTurn}
           onNewGame={resetGame}
-          isComputerThinking={false}
+          isComputerThinking={isComputerThinking}
           mySymbol={mySymbol}
         />
       </div>

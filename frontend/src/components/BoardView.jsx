@@ -29,8 +29,17 @@ const BoardView = ({
     </button>
   );
 
+  // For PvP mode
   const didIWin = gameMode === 'pvp' && winner === mySymbol;
   const didILose = gameMode === 'pvp' && winner && winner !== mySymbol;
+  
+  // For PvC mode
+  const playerWonPvC = gameMode === 'pvc' && winner === 'X';
+  const computerWonPvC = gameMode === 'pvc' && winner === 'O';
+
+  // Determine overall win/loss state
+  const isWinner = didIWin || playerWonPvC;
+  const isLoser = didILose || computerWonPvC;
 
   return (
     <div className="w-full max-w-md">
@@ -47,29 +56,31 @@ const BoardView = ({
       {(winner || isDraw) && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-10">
           <div className={`bg-white p-8 rounded-2xl text-center shadow-2xl w-full max-w-sm transform transition-all ${
-            didIWin ? 'border-4 border-green-400' : didILose ? 'border-4 border-red-400' : 'border-4 border-yellow-400'
+            isWinner ? 'border-4 border-green-400' : isLoser ? 'border-4 border-red-400' : 'border-4 border-yellow-400'
           }`}>
             <div className="text-6xl mb-4">
-              {isDraw ? '🤝' : didIWin ? '🏆' : didILose ? '😢' : '🎉'}
+              {isDraw ? '🤝' : isWinner ? '🏆' : isLoser ? (gameMode === 'pvc' ? '🤖' : '😢') : '🎉'}
             </div>
             <h3 className={`text-4xl font-bold mb-4 ${
-              didIWin ? 'text-green-600' : didILose ? 'text-red-600' : 'text-yellow-600'
+              isWinner ? 'text-green-600' : isLoser ? 'text-red-600' : 'text-yellow-600'
             }`}>
               {isDraw 
                 ? "It's a Draw!" 
-                : didIWin 
+                : isWinner 
                   ? "You Win!" 
-                  : didILose 
-                    ? "You Lost!" 
+                  : isLoser 
+                    ? (gameMode === 'pvc' ? "Computer Wins!" : "You Lost!")
                     : `Player ${winner} Wins!`}
             </h3>
             <p className="text-gray-600 mb-6 text-lg">
               {isDraw 
                 ? "Great game! Want to play again?" 
-                : didIWin 
+                : isWinner 
                   ? "Congratulations! You played brilliantly! 🎊" 
-                  : didILose 
-                    ? "Better luck next time! Keep practicing! 💪"
+                  : isLoser 
+                    ? (gameMode === 'pvc' 
+                        ? "The computer was too smart! Try again! 💪"
+                        : "Better luck next time! Keep practicing! 💪")
                     : `Congratulations to ${winner}!`}
             </p>
             <button
@@ -77,8 +88,8 @@ const BoardView = ({
               className={`px-6 py-3 text-white rounded-lg font-semibold
                        hover:opacity-90 transition-all duration-200
                        focus:outline-none focus:ring-2 focus:ring-offset-2 w-full
-                       ${didIWin ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 
-                         didILose ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 
+                       ${isWinner ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 
+                         isLoser ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 
                          'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'}`}
             >
               Play Again
