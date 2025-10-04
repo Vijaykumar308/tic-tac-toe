@@ -124,7 +124,7 @@ const Board = ({ isPvP = false }) => {
   };
 
   const handlePvPStart = useCallback((gameData) => {
-    console.log('Game started with data:', gameData);
+    // console.log(('Game started with data:', gameData);
     
     const player1 = gameData.players?.[0]?.name || 'Player 1';
     const player2 = gameData.players?.[1]?.name || 'Waiting...';
@@ -209,19 +209,19 @@ const Board = ({ isPvP = false }) => {
     socketClient.connect();
 
     const handleGameUpdate = (data) => {
-      console.log('Game update received:', data);
-      console.log('Current board:', data.board);
+      // console.log(('Game update received:', data);
+      // console.log(('Current board:', data.board);
       
       setSquares([...data.board]);
       setIsXTurn(data.isXTurn);
       
       if (data.winner) {
         const result = checkWinner(data.board);
-        console.log('Winner detected, checking board for winning line:', result);
+        // console.log(('Winner detected, checking board for winning line:', result);
         
         setWinner(data.winner);
         if (result && result.line) {
-          console.log('Setting winning line:', result.line);
+          // console.log(('Setting winning line:', result.line);
           setWinningLine(result.line);
         } else {
           console.warn('Could not find winning line for winner:', data.winner);
@@ -251,7 +251,7 @@ const Board = ({ isPvP = false }) => {
     };
 
     const handlePlayerJoined = (player) => {
-      console.log('Player joined:', player);
+      // console.log(('Player joined:', player);
       setPlayers(prev => ({
         ...prev,
         player2: player?.name || 'Player 2'
@@ -263,7 +263,7 @@ const Board = ({ isPvP = false }) => {
     };
 
     const handleGameStart = (data) => {
-      console.log('Game start event received:', data);
+      // console.log(('Game start event received:', data);
       
       if (data.players && data.players.length === 2) {
         setPlayers({
