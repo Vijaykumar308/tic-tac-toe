@@ -37,10 +37,8 @@ const Board = ({ isPvP = false }) => {
 
   const resetGame = useCallback(() => {
     if (gameMode === 'pvp' && gameId) {
-      // For PvP mode, emit restart event to server
       socketClient.restartGame(gameId);
     } else {
-      // For local games, reset immediately
       setSquares(Array(9).fill(null));
       setIsXTurn(true);
       setWinner(null);
@@ -139,12 +137,12 @@ const Board = ({ isPvP = false }) => {
       
       if (data.winner) {
         setWinner(data.winner);
-        setGameStatus(`Player ${data.winner} wins!`);
+        const didIWin = data.winner === mySymbol;
+        setGameStatus(didIWin ? 'You Win! 🏆' : 'You Lost 😢');
       } else if (data.isDraw) {
         setIsDraw(true);
-        setGameStatus("It's a draw!");
+        setGameStatus("It's a draw! 🤝");
       } else {
-        // Clear winner and draw state when game restarts
         setWinner(null);
         setIsDraw(false);
         
@@ -285,6 +283,7 @@ const Board = ({ isPvP = false }) => {
           isXTurn={isXTurn}
           onNewGame={resetGame}
           isComputerThinking={false}
+          mySymbol={mySymbol}
         />
       </div>
     </div>
