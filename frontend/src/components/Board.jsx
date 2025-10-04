@@ -18,6 +18,9 @@ const Board = ({ isPvP = false }) => {
   const [isDraw, setIsDraw] = useState(false);
   const [gameStatus, setGameStatus] = useState('Waiting for players...');
   const [isComputerThinking, setIsComputerThinking] = useState(false);
+  const [winningLine, setWinningLine] = useState(null);
+  const [showWinPopup, setShowWinPopup] = useState(false);
+  const [shakeBoard, setShakeBoard] = useState(false);
   
   const navigate = useNavigate();
 
@@ -30,7 +33,7 @@ const Board = ({ isPvP = false }) => {
     
     for (let [a, b, c] of lines) {
       if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return squares[a];
+        return { winner: squares[a], line: [a, b, c] };
       }
     }
     return null;
@@ -46,13 +49,13 @@ const Board = ({ isPvP = false }) => {
     for (let i of availableSquares) {
       const testSquares = [...squares];
       testSquares[i] = 'O';
-      if (checkWinner(testSquares) === 'O') return i;
+      if (checkWinner(testSquares)?.winner === 'O') return i;
     }
     
     for (let i of availableSquares) {
       const testSquares = [...squares];
       testSquares[i] = 'X';
-      if (checkWinner(testSquares) === 'X') return i;
+      if (checkWinner(testSquares)?.winner === 'X') return i;
     }
     
     if (squares[4] === null) return 4;
@@ -77,13 +80,16 @@ const Board = ({ isPvP = false }) => {
         setSquares(newSquares);
         setIsXTurn(true);
         
-        const gameWinner = checkWinner(newSquares);
-        if (gameWinner) {
-          setWinner(gameWinner);
-          setGameStatus(gameWinner === 'X' ? 'You Win! 🏆' : 'Computer Wins! 🤖');
+        const result = checkWinner(newSquares);
+        if (result) {
+          setWinner(result.winner);
+          setWinningLine(result.line);
+          setGameStatus(result.winner === 'X' ? 'You Win! 🏆' : 'Computer Wins! 🤖');
+          setTimeout(() => setShowWinPopup(true), 1500);
         } else if (newSquares.every(square => square !== null)) {
           setIsDraw(true);
           setGameStatus("It's a draw! 🤝");
+          setTimeout(() => setShowWinPopup(true), 1000);
         } else {
           setGameStatus('Your turn (X)');
         }
@@ -101,6 +107,8 @@ const Board = ({ isPvP = false }) => {
       setWinner(null);
       setIsDraw(false);
       setIsComputerThinking(false);
+      setWinningLine(null);
+      setShowWinPopup(false);
       setGameStatus(gameMode === 'pvc' ? 'Your turn (X)' : 'Game reset - Make your move');
     }
   }, [gameMode, gameId]);
@@ -155,10 +163,10 @@ const Board = ({ isPvP = false }) => {
 
     const currentSymbol = isXTurn ? 'X' : 'O';
     
-    // For PvP mode, check if it's the player's turn
     if (gameMode === 'pvp') {
       if (mySymbol !== currentSymbol) {
-        console.log('Not your turn');
+        setShakeBoard(true);
+        setTimeout(() => setShakeBoard(false), 500);
         return;
       }
     }
@@ -175,17 +183,20 @@ const Board = ({ isPvP = false }) => {
       setSquares(newSquares);
       setIsXTurn(!isXTurn);
       
-      const gameWinner = checkWinner(newSquares);
-      if (gameWinner) {
-        setWinner(gameWinner);
+      const result = checkWinner(newSquares);
+      if (result) {
+        setWinner(result.winner);
+        setWinningLine(result.line);
         if (gameMode === 'pvc') {
-          setGameStatus(gameWinner === 'X' ? 'You Win! 🏆' : 'Computer Wins! 🤖');
+          setGameStatus(result.winner === 'X' ? 'You Win! 🏆' : 'Computer Wins! 🤖');
         } else {
-          setGameStatus(`Player ${gameWinner} wins!`);
+          setGameStatus(`Player ${result.winner} wins!`);
         }
+        setTimeout(() => setShowWinPopup(true), 1500);
       } else if (newSquares.every(square => square !== null)) {
         setIsDraw(true);
         setGameStatus("It's a draw! 🤝");
+        setTimeout(() => setShowWinPopup(true), 1000);
       } else if (gameMode === 'pvc' && currentSymbol === 'X') {
         makeComputerMove(newSquares);
       }
@@ -204,15 +215,23 @@ const Board = ({ isPvP = false }) => {
       setIsXTurn(data.isXTurn);
       
       if (data.winner) {
+        const result = checkWinner(data.board);
         setWinner(data.winner);
+        if (result) {
+          setWinningLine(result.line);
+        }
         const didIWin = data.winner === mySymbol;
         setGameStatus(didIWin ? 'You Win! 🏆' : 'You Lost 😢');
+        setTimeout(() => setShowWinPopup(true), 1500);
       } else if (data.isDraw) {
         setIsDraw(true);
         setGameStatus("It's a draw! 🤝");
+        setTimeout(() => setShowWinPopup(true), 1000);
       } else {
         setWinner(null);
         setIsDraw(false);
+        setWinningLine(null);
+        setShowWinPopup(false);
         
         const currentPlayer = data.isXTurn ? 'X' : 'O';
         const isMyTurn = mySymbol === currentPlayer;
@@ -257,7 +276,7 @@ const Board = ({ isPvP = false }) => {
     return () => {
       socketClient.cleanup();
     };
-  }, [gameMode, mySymbol, isHost]);
+  }, [gameMode, mySymbol, isHost, checkWinner]);
 
   const handleBackToMenu = () => {
     if (gameMode === 'pvp') {
@@ -272,6 +291,8 @@ const Board = ({ isPvP = false }) => {
     setWinner(null);
     setIsDraw(false);
     setIsComputerThinking(false);
+    setWinningLine(null);
+    setShowWinPopup(false);
     setGameStatus('Waiting for players...');
   };
 
@@ -318,24 +339,26 @@ const Board = ({ isPvP = false }) => {
           </button>
         </div>
         
-        <div className="mb-6 p-4 bg-white rounded-xl shadow-md">
+        <div className={`mb-6 p-4 bg-white rounded-xl shadow-md transition-all duration-300 ${
+          shakeBoard ? 'animate-shake' : ''
+        }`}>
           <p className="text-lg font-semibold text-center text-gray-800 mb-1">
             {gameStatus}
           </p>
           {gameMode === 'pvp' && (
             <div className="flex justify-between items-center mt-2 px-2">
-              <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+              <span className={`text-sm font-medium px-3 py-1 rounded-full transition-all duration-300 ${
                 (isXTurn && mySymbol === 'X') || (!isXTurn && mySymbol === 'O') 
-                  ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-400' 
+                  ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 scale-110' 
                   : 'text-gray-600'
               }`}>
                 {players.player1} (X) {mySymbol === 'X' && '← You'}
               </span>
               <span className="text-gray-400 mx-2">vs</span>
-              <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+              <span className={`text-sm font-medium px-3 py-1 rounded-full transition-all duration-300 ${
                 (!isXTurn && mySymbol === 'O') || (isXTurn && mySymbol === 'X')
                   ? 'text-gray-600'
-                  : 'bg-red-100 text-red-800 ring-2 ring-red-400'
+                  : 'bg-red-100 text-red-800 ring-2 ring-red-400 scale-110'
               }`}>
                 {players.player2 || 'Waiting...'} (O) {mySymbol === 'O' && '← You'}
               </span>
@@ -353,8 +376,21 @@ const Board = ({ isPvP = false }) => {
           onNewGame={resetGame}
           isComputerThinking={isComputerThinking}
           mySymbol={mySymbol}
+          winningLine={winningLine}
+          showWinPopup={showWinPopup}
         />
       </div>
+      
+      <style jsx>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+          20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+          animation: shake 0.5s;
+        }
+      `}</style>
     </div>
   );
 };

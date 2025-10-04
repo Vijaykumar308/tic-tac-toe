@@ -9,35 +9,42 @@ const BoardView = ({
   isXTurn,
   onNewGame,
   isComputerThinking,
-  mySymbol
+  mySymbol,
+  winningLine,
+  showWinPopup
 }) => {
-  const renderSquare = (index) => (
-    <button
-      key={index}
-      className={`
-        w-20 h-20 text-3xl font-bold 
-        bg-white border-2 border-gray-200 rounded-xl 
-        hover:bg-gray-50 focus:outline-none focus:ring-2 
-        focus:ring-blue-400 transition-all duration-200
-        ${squares[index] === 'X' ? 'text-blue-600' : 'text-red-600'}
-        shadow-sm hover:shadow-md
-      `}
-      onClick={() => onSquareClick(index)}
-      disabled={!!winner || isDraw || (gameMode === 'pvc' && !isXTurn) || isComputerThinking}
-    >
-      {squares[index]}
-    </button>
-  );
+  const renderSquare = (index) => {
+    const isWinningSquare = winningLine && winningLine.includes(index);
+    
+    return (
+      <button
+        key={index}
+        className={`
+          w-20 h-20 text-3xl font-bold 
+          bg-white border-2 rounded-xl 
+          hover:bg-gray-50 focus:outline-none focus:ring-2 
+          focus:ring-blue-400 transition-all duration-300
+          ${squares[index] === 'X' ? 'text-blue-600' : 'text-red-600'}
+          ${isWinningSquare ? 'bg-yellow-200 border-yellow-500 animate-pulse scale-110' : 'border-gray-200'}
+          shadow-sm hover:shadow-md
+          ${!winner && !isDraw && !isComputerThinking ? 'hover:scale-105' : ''}
+        `}
+        onClick={() => onSquareClick(index)}
+        disabled={!!winner || isDraw || (gameMode === 'pvc' && !isXTurn) || isComputerThinking}
+      >
+        <span className={`${isWinningSquare ? 'animate-bounce' : ''}`}>
+          {squares[index]}
+        </span>
+      </button>
+    );
+  };
 
-  // For PvP mode
   const didIWin = gameMode === 'pvp' && winner === mySymbol;
   const didILose = gameMode === 'pvp' && winner && winner !== mySymbol;
   
-  // For PvC mode
   const playerWonPvC = gameMode === 'pvc' && winner === 'X';
   const computerWonPvC = gameMode === 'pvc' && winner === 'O';
 
-  // Determine overall win/loss state
   const isWinner = didIWin || playerWonPvC;
   const isLoser = didILose || computerWonPvC;
 
@@ -53,12 +60,12 @@ const BoardView = ({
         </div>
       </div>
 
-      {(winner || isDraw) && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-10">
-          <div className={`bg-white p-8 rounded-2xl text-center shadow-2xl w-full max-w-sm transform transition-all ${
+      {showWinPopup && (winner || isDraw) && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className={`bg-white p-8 rounded-2xl text-center shadow-2xl w-full max-w-sm transform transition-all animate-slideUp ${
             isWinner ? 'border-4 border-green-400' : isLoser ? 'border-4 border-red-400' : 'border-4 border-yellow-400'
           }`}>
-            <div className="text-6xl mb-4">
+            <div className="text-6xl mb-4 animate-bounce">
               {isDraw ? '🤝' : isWinner ? '🏆' : isLoser ? (gameMode === 'pvc' ? '🤖' : '😢') : '🎉'}
             </div>
             <h3 className={`text-4xl font-bold mb-4 ${
@@ -86,7 +93,7 @@ const BoardView = ({
             <button
               onClick={onNewGame}
               className={`px-6 py-3 text-white rounded-lg font-semibold
-                       hover:opacity-90 transition-all duration-200
+                       hover:opacity-90 transition-all duration-200 transform hover:scale-105
                        focus:outline-none focus:ring-2 focus:ring-offset-2 w-full
                        ${isWinner ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 
                          isLoser ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 
@@ -97,6 +104,23 @@ const BoardView = ({
           </div>
         </div>
       )}
+      
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(50px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        .animate-slideUp {
+          animation: slideUp 0.4s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
