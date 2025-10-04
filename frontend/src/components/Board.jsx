@@ -210,16 +210,23 @@ const Board = ({ isPvP = false }) => {
 
     const handleGameUpdate = (data) => {
       console.log('Game update received:', data);
+      console.log('Current board:', data.board);
       
       setSquares([...data.board]);
       setIsXTurn(data.isXTurn);
       
       if (data.winner) {
         const result = checkWinner(data.board);
+        console.log('Winner detected, checking board for winning line:', result);
+        
         setWinner(data.winner);
-        if (result) {
+        if (result && result.line) {
+          console.log('Setting winning line:', result.line);
           setWinningLine(result.line);
+        } else {
+          console.warn('Could not find winning line for winner:', data.winner);
         }
+        
         const didIWin = data.winner === mySymbol;
         setGameStatus(didIWin ? 'You Win! 🏆' : 'You Lost 😢');
         setTimeout(() => setShowWinPopup(true), 1500);

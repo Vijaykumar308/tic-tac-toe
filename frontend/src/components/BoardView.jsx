@@ -13,19 +13,36 @@ const BoardView = ({
   winningLine,
   showWinPopup
 }) => {
+  // Debug: Log winningLine whenever it changes
+  React.useEffect(() => {
+    if (winningLine) {
+      console.log('BoardView received winningLine:', winningLine);
+      console.log('WinningLine type:', Array.isArray(winningLine) ? 'Array' : typeof winningLine);
+      console.log('WinningLine length:', winningLine.length);
+      console.log('WinningLine values:', winningLine[0], winningLine[1], winningLine[2]);
+    }
+  }, [winningLine]);
+
   const renderSquare = (index) => {
     const isWinningSquare = winningLine && winningLine.includes(index);
+    
+    // Debug: Log for each square when there's a winning line
+    if (winningLine && index <= 2) {
+      console.log(`Square ${index}: isWinningSquare = ${isWinningSquare}, winningLine.includes(${index}) = ${winningLine.includes(index)}`);
+    }
     
     return (
       <button
         key={index}
         className={`
           w-20 h-20 text-3xl font-bold 
-          bg-white border-2 rounded-xl 
-          hover:bg-gray-50 focus:outline-none focus:ring-2 
+          rounded-xl 
+          focus:outline-none focus:ring-2 
           focus:ring-blue-400 transition-all duration-300
           ${squares[index] === 'X' ? 'text-blue-600' : 'text-red-600'}
-          ${isWinningSquare ? 'bg-yellow-200 border-yellow-500 animate-pulse scale-110' : 'border-gray-200'}
+          ${isWinningSquare 
+            ? 'bg-yellow-200 border-4 border-yellow-500 animate-pulse scale-110' 
+            : 'bg-white border-2 border-gray-200 hover:bg-gray-50'}
           shadow-sm hover:shadow-md
           ${!winner && !isDraw && !isComputerThinking ? 'hover:scale-105' : ''}
         `}
