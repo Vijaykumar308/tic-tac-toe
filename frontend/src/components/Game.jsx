@@ -12,10 +12,9 @@ export const Game = ({ gameData, onBack }) => {
   const [winner, setWinner] = useState(null);
 
   useEffect(() => {
-    // If we have game data from PvPSetup, set up the game
     if (gameData) {
       const { players, board, currentPlayer, status } = gameData;
-      setPlayers(players);
+      setPlayers(players || []);
       setSquares(board || Array(9).fill(null));
       setCurrentPlayer(currentPlayer || 'X');
       setIsXNext(currentPlayer === 'X');
@@ -23,8 +22,8 @@ export const Game = ({ gameData, onBack }) => {
       updateStatus(board || Array(9).fill(null), currentPlayer || 'X');
     }
 
-    // Set up socket event listeners
     socketClient.onGameUpdate(handleGameUpdate);
+    socketClient.onPlayerJoined(handlePlayerJoined);
     
     return () => {
       socketClient.cleanup();
@@ -32,7 +31,8 @@ export const Game = ({ gameData, onBack }) => {
   }, [gameData]);
 
   const handleGameUpdate = (data) => {
-    const { board, currentPlayer, status, winner } = data;
+    const { board, currentPlayer, status, winner, isDraw } = data;
+    
     setSquares([...board]);
     setCurrentPlayer(currentPlayer);
     setIsXNext(currentPlayer === 'X');
@@ -47,14 +47,31 @@ export const Game = ({ gameData, onBack }) => {
         setStatus(`Winner: ${winnerPlayer?.name || winner}`);
       }
     } else {
-      updateStatus(board, currentPlayer);
+      setWinner(null);
+      if (status === 'in-progress') {
+        const currentPlayerObj = players.find(p => p.symbol === currentPlayer);
+        setStatus(`Next player: ${currentPlayerObj?.name || currentPlayer} (${currentPlayer})`);
+      }
     }
+    
+    if (isDraw) {
+      setStatus('Game ended in a draw!');
+      setWinner('draw');
+    }
+  };
+
+  const handlePlayerJoined = (player) => {
+    setPlayers(prevPlayers => {
+      const existingPlayer = prevPlayers.find(p => p.id === player.id);
+      return existingPlayer ? prevPlayers : [...prevPlayers, player];
+    });
   };
 
   const updateStatus = (squares, current) => {
     const winner = calculateWinner(squares);
     if (winner) {
-      setStatus(`Winner: ${winner}`);
+      const winnerPlayer = players.find(p => p.symbol === winner);
+      setStatus(`Winner: ${winnerPlayer?.name || winner}`);
     } else if (squares.every(square => square !== null)) {
       setStatus('Game ended in a draw!');
     } else {
@@ -64,35 +81,32 @@ export const Game = ({ gameData, onBack }) => {
   };
 
   const handleClick = (i) => {
-    if (gameStatus !== 'in-progress' || squares[i] || currentPlayer !== (gameData?.isHost ? 'X' : 'O')) {
+    if (gameStatus !== 'in-progress' || squares[i] !== null) {
+      console.log('Invalid move - game not in progress or cell taken');
       return;
     }
 
-    const nextSquares = squares.slice();
-    nextSquares[i] = isXNext ? 'X' : 'O';
-    
-    // Emit move to server
+    const isCurrentPlayer = gameData?.isHost ? currentPlayer === 'X' : currentPlayer === 'O';
+    if (!isCurrentPlayer) {
+      console.log('Not your turn');
+      return;
+    }
+
     socketClient.makeMove({
       roomId: gameData.roomId,
       index: i,
-      symbol: isXNext ? 'X' : 'O'
+      symbol: currentPlayer
     });
   };
 
   const calculateWinner = (squares) => {
     const lines = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
     ];
 
-    for (let i = 0; i < lines.length; i++) {
-      const [a, b, c] = lines[i];
+    for (let [a, b, c] of lines) {
       if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
         return squares[a];
       }
@@ -101,13 +115,9 @@ export const Game = ({ gameData, onBack }) => {
   };
 
   const handleRestart = () => {
-    // In a real app, you would emit a restart event to the server
-    setSquares(Array(9).fill(null));
-    setCurrentPlayer('X');
-    setIsXNext(true);
-    setGameStatus('in-progress');
     setWinner(null);
-    setStatus('Next player: X');
+    setStatus('Restarting game...');
+    socketClient.restartGame(gameData.roomId);
   };
 
   return (

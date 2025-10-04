@@ -11,7 +11,7 @@ const Board = ({ isPvP = false }) => {
   const [players, setPlayers] = useState({ player1: 'Player 1', player2: 'Player 2' });
   const [gameId, setGameId] = useState(null);
   const [isHost, setIsHost] = useState(false);
-  const [mySymbol, setMySymbol] = useState(null); // Track player's symbol
+  const [mySymbol, setMySymbol] = useState(null);
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [isXTurn, setIsXTurn] = useState(true);
   const [winner, setWinner] = useState(null);
@@ -22,9 +22,9 @@ const Board = ({ isPvP = false }) => {
 
   const checkWinner = useCallback((squares) => {
     const lines = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
-      [0, 4, 8], [2, 4, 6] // diagonals
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
     ];
     
     for (let [a, b, c] of lines) {
@@ -36,12 +36,18 @@ const Board = ({ isPvP = false }) => {
   }, []);
 
   const resetGame = useCallback(() => {
-    setSquares(Array(9).fill(null));
-    setIsXTurn(true);
-    setWinner(null);
-    setIsDraw(false);
-    setGameStatus('Game reset - Make your move');
-  }, []);
+    if (gameMode === 'pvp' && gameId) {
+      // For PvP mode, emit restart event to server
+      socketClient.restartGame(gameId);
+    } else {
+      // For local games, reset immediately
+      setSquares(Array(9).fill(null));
+      setIsXTurn(true);
+      setWinner(null);
+      setIsDraw(false);
+      setGameStatus('Game reset - Make your move');
+    }
+  }, [gameMode, gameId]);
 
   const handleGameModeSelect = (mode) => {
     setGameMode(mode);
@@ -65,11 +71,9 @@ const Board = ({ isPvP = false }) => {
     setShowPvPSetup(false);
     setIsHost(!!gameData.isHost);
     
-    // Set player's symbol based on host status
     const playerSymbol = gameData.isHost ? 'X' : 'O';
     setMySymbol(playerSymbol);
     
-    // Set initial status based on host status
     if (gameData.isHost) {
       setGameStatus('Your turn (X)');
     } else {
@@ -78,19 +82,16 @@ const Board = ({ isPvP = false }) => {
   }, []);
 
   const handleSquareClick = useCallback((i) => {
-    // Check if game is over
     if (winner || isDraw) {
       console.log('Game is over');
       return;
     }
 
-    // Check if the square is already filled
     if (squares[i]) {
       console.log('Invalid move: Square already taken');
       return;
     }
 
-    // FIXED: Check if it's the current player's turn
     const currentSymbol = isXTurn ? 'X' : 'O';
     const isMyTurn = gameMode === 'pvp' ? (mySymbol === currentSymbol) : true;
 
@@ -101,7 +102,6 @@ const Board = ({ isPvP = false }) => {
 
     console.log(`Making move at index ${i} with symbol ${currentSymbol}`);
 
-    // Emit move to server BEFORE updating local state
     if (gameMode === 'pvp' && gameId) {
       socketClient.makeMove({
         roomId: gameId,
@@ -110,7 +110,6 @@ const Board = ({ isPvP = false }) => {
         isXTurn: isXTurn
       });
     } else {
-      // For local games, update immediately
       const newSquares = [...squares];
       newSquares[i] = currentSymbol;
       setSquares(newSquares);
@@ -127,7 +126,6 @@ const Board = ({ isPvP = false }) => {
     }
   }, [squares, isXTurn, gameMode, gameId, mySymbol, winner, isDraw, checkWinner]);
 
-  // Set up socket listeners
   useEffect(() => {
     if (gameMode !== 'pvp') return;
 
@@ -136,13 +134,9 @@ const Board = ({ isPvP = false }) => {
     const handleGameUpdate = (data) => {
       console.log('Game update received:', data);
       
-      // Update the board state from server
-      setSquares(data.board);
-      
-      // Update the turn indicator from server
+      setSquares([...data.board]);
       setIsXTurn(data.isXTurn);
       
-      // Update game status
       if (data.winner) {
         setWinner(data.winner);
         setGameStatus(`Player ${data.winner} wins!`);
@@ -150,6 +144,10 @@ const Board = ({ isPvP = false }) => {
         setIsDraw(true);
         setGameStatus("It's a draw!");
       } else {
+        // Clear winner and draw state when game restarts
+        setWinner(null);
+        setIsDraw(false);
+        
         const currentPlayer = data.isXTurn ? 'X' : 'O';
         const isMyTurn = mySymbol === currentPlayer;
         
@@ -167,7 +165,6 @@ const Board = ({ isPvP = false }) => {
         player2: player?.name || 'Player 2'
       }));
       
-      // If you're the host, it's your turn when player joins
       if (isHost) {
         setGameStatus('Your turn (X)');
       }
@@ -176,7 +173,6 @@ const Board = ({ isPvP = false }) => {
     const handleGameStart = (data) => {
       console.log('Game start event received:', data);
       
-      // Update players list
       if (data.players && data.players.length === 2) {
         setPlayers({
           player1: data.players[0].name,
@@ -184,7 +180,6 @@ const Board = ({ isPvP = false }) => {
         });
       }
       
-      // Update game status
       const isMyTurn = mySymbol === 'X';
       setGameStatus(isMyTurn ? 'Your turn (X)' : 'Waiting for X...');
     };
@@ -206,7 +201,11 @@ const Board = ({ isPvP = false }) => {
     setShowPvPSetup(false);
     setGameId(null);
     setMySymbol(null);
-    resetGame();
+    setSquares(Array(9).fill(null));
+    setIsXTurn(true);
+    setWinner(null);
+    setIsDraw(false);
+    setGameStatus('Waiting for players...');
   };
 
   if (!gameMode) {
