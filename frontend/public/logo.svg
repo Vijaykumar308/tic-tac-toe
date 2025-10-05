@@ -1,0 +1,19 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="48" fill="url(#gradient1)" />
+  <line x1="35" y1="25" x2="35" y2="75" stroke="white" stroke-width="2" opacity="0.3" />
+  <line x1="65" y1="25" x2="65" y2="75" stroke="white" stroke-width="2" opacity="0.3" />
+  <line x1="25" y1="35" x2="75" y2="35" stroke="white" stroke-width="2" opacity="0.3" />
+  <line x1="25" y1="65" x2="75" y2="65" stroke="white" stroke-width="2" opacity="0.3" />
+  <g transform="translate(30, 30)">
+    <line x1="2" y1="2" x2="13" y2="13" stroke="#60A5FA" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="13" y1="2" x2="2" y2="13" stroke="#60A5FA" stroke-width="3.5" stroke-linecap="round" />
+  </g>
+  <circle cx="57.5" cy="57.5" r="7" stroke="#F87171" stroke-width="3.5" fill="none" stroke-linecap="round" />
+  <line x1="25" y1="50" x2="75" y2="50" stroke="#FCD34D" stroke-width="3" stroke-linecap="round" opacity="0.8" />
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#8B5CF6" />
+    </linearGradient>
+  </defs>
+</svg>

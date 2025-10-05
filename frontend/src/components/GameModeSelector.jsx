@@ -1,9 +1,14 @@
+import Logo from "./Logo";
+
 const GameModeSelector = ({ onSelectMode }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Tic Tac Toe</h1>
-        <p className="text-gray-600 mb-8">Select game mode to start playing</p>
+        {/* <h1 className="text-3xl font-bold text-gray-800 mb-2">Tic Tac Toe</h1>
+        <p className="text-gray-600 mb-8">Select game mode to start playing</p> */}
+        <div className="mb-8 flex items-center justify-center gap-2 text-3xl font-bold">
+          <Logo size="lg" showText={true} />
+        </div>
         
         <div className="space-y-4">
           <button
